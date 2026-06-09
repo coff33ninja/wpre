@@ -297,7 +297,34 @@ func handleOneDriveExtract(ctx *pipeline.Context) error {
 }
 
 func handleAppCapture(ctx *pipeline.Context) error {
-	ctx.Logger.Info("[app_capture] capturing browser and app state (stub)")
+	ctx.Logger.Info("[app_capture] capturing browser and app auth data")
+	if ctx.Data.DryRun {
+		ctx.Logger.Info("[app_capture] dry-run — skipping")
+		return nil
+	}
+	if ctx.Data.ScanResults == nil {
+		return fmt.Errorf("no scan results — run profile_scan first")
+	}
+
+	source := findSourceProfile(ctx)
+	if source == "" {
+		ctx.Logger.Warn("[app_capture] no source profile found — skipping browser auth")
+		return nil
+	}
+
+	cfg := ctx.Config.(*config.Config)
+	if !cfg.Browsers.IncludeCookies && !cfg.Browsers.IncludePasswords && !cfg.Browsers.IncludeSessions {
+		ctx.Logger.Info("[app_capture] browser auth capture disabled in config — skipping")
+		return nil
+	}
+	ctx.Logger.Info("[app_capture] harvesting browser auth from: %s", source)
+
+	if err := harvestBrowserAuth(ctx, source); err != nil {
+		ctx.Logger.Warn("[app_capture] harvestBrowserAuth error (non-fatal): %v", err)
+		return nil
+	}
+
+	ctx.Logger.Info("[app_capture] browser auth capture complete")
 	return nil
 }
 
@@ -393,6 +420,51 @@ func handleDataInject(ctx *pipeline.Context) error {
 			continue
 		}
 		ctx.Logger.Info("[data_inject] injected %s -> %s: %d files", d.src, d.dst, result.FilesCopied)
+	}
+
+	browserVault := filepath.Join(ctx.Data.VaultRoot, "Browsers")
+	restoreBrowser := cfg.Browsers.IncludeCookies || cfg.Browsers.IncludePasswords || cfg.Browsers.IncludeSessions
+	if _, err := os.Stat(browserVault); err == nil && restoreBrowser {
+		ctx.Logger.Info("[data_inject] restoring browser auth data to new profile")
+
+		targetLocal := filepath.Join(targetProfile, "AppData", "Local")
+		targetRoaming := filepath.Join(targetProfile, "AppData", "Roaming")
+
+		browserRestore := []struct {
+			vaultSub string
+			dstRoot  string
+			subPath  string
+		}{
+			{"Chrome", targetLocal, filepath.Join("Google", "Chrome", "User Data", "Default")},
+			{"Edge", targetLocal, filepath.Join("Microsoft", "Edge", "User Data", "Default")},
+			{"Firefox", targetRoaming, filepath.Join("Mozilla", "Firefox", "Profiles")},
+		}
+
+		for _, br := range browserRestore {
+			src := filepath.Join(browserVault, br.vaultSub)
+			if _, err := os.Stat(src); os.IsNotExist(err) {
+				continue
+			}
+			dst := filepath.Join(br.dstRoot, br.subPath)
+			if err := os.MkdirAll(dst, 0755); err != nil {
+				ctx.Logger.Warn("[data_inject] mkdir %s: %v", dst, err)
+				continue
+			}
+			opts := fileengine.DefaultCopyOptions()
+			result, err := fileengine.CopyTree(fileengine.CopyOptions{
+				SourceDir:          src,
+				DestDir:            dst,
+				RetryCount:         3,
+				RetryDelay:         opts.RetryDelay,
+				PreserveTimestamps: true,
+				Overwrite:          true,
+			})
+			if err != nil {
+				ctx.Logger.Warn("[data_inject] browser restore %s: %v", br.vaultSub, err)
+				continue
+			}
+			ctx.Logger.Info("[data_inject]   browser %s: %d files restored to %s", br.vaultSub, result.FilesCopied, dst)
+		}
 	}
 
 	ctx.Logger.Info("[data_inject] data injection complete")

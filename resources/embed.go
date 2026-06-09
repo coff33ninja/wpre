@@ -39,6 +39,9 @@ browsers:
   edge: true
   firefox: true
   include_history: false
+  include_cookies: true
+  include_passwords: true
+  include_sessions: true
 
 outlook:
   enabled: true

@@ -36,11 +36,14 @@ type OneDriveConfig struct {
 }
 
 type BrowserConfig struct {
-	Chrome          bool `yaml:"chrome"`
-	Edge            bool `yaml:"edge"`
-	Firefox         bool `yaml:"firefox"`
-	IncludeHistory  bool `yaml:"include_history"`
+	Chrome            bool `yaml:"chrome"`
+	Edge              bool `yaml:"edge"`
+	Firefox           bool `yaml:"firefox"`
+	IncludeHistory    bool `yaml:"include_history"`
 	IncludeExtensions bool `yaml:"include_extensions"`
+	IncludeCookies    bool `yaml:"include_cookies"`
+	IncludePasswords  bool `yaml:"include_passwords"`
+	IncludeSessions   bool `yaml:"include_sessions"`
 }
 
 type OutlookConfig struct {
@@ -96,11 +99,14 @@ func Default() *Config {
 			DetachAfterHarvest:  true,
 		},
 		Browsers: BrowserConfig{
-			Chrome:           true,
-			Edge:             true,
-			Firefox:          true,
-			IncludeHistory:   false,
+			Chrome:            true,
+			Edge:              true,
+			Firefox:           true,
+			IncludeHistory:    false,
 			IncludeExtensions: true,
+			IncludeCookies:    true,
+			IncludePasswords:  true,
+			IncludeSessions:   true,
 		},
 		Outlook: OutlookConfig{
 			Enabled:           true,

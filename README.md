@@ -69,7 +69,7 @@ data_inject  first_login_init  profile_cleanup  final_validation
 | 4 | **temp_profile_create** | Create `WPRE_TempAdmin`, set auto-login | `temp_profile.ps1` |
 | 5 | **data_harvest** | Copy Desktop/Documents/Downloads/ etc. to vault | Go file engine |
 | 6 | **onedrive_extract** | Pause sync → hydrate → copy → sign out | `onedrive_state.ps1` |
-| 7 | **app_capture** | Browser/Outlook data extraction (stub) | Python parsers |
+| 7 | **app_capture** | Browser auth data (cookies, logins, sessions) → vault | Go file engine |
 | 8 | **new_profile_create** | Create `NewUser` target profile | `new_profile.ps1` |
 | 9 | **data_inject** | Copy vault data into target profile | Go file engine |
 | 10 | **first_login_init** | Prepare first-login state (stub) | — |
@@ -88,6 +88,14 @@ onedrive:
   enabled: true
   pause_before_harvest: true
   detach_after_harvest: true
+
+browsers:
+  chrome: true
+  edge: true
+  firefox: true
+  include_cookies: true
+  include_passwords: true
+  include_sessions: true
 
 data:
   vault_root: "C:\\MigrationVault"
@@ -119,10 +127,18 @@ Full schema in `resources/embed.go` (`DefaultConfigYAML` constant) or `resources
 - Browser bookmarks (via Python parsers)
 - Outlook PST/OST files (via Python parsers)
 
+### Configurable — browser auth data (opt-in via `browsers.include_*`)
+- **Cookies** (`BrowserConfig.IncludeCookies` / `include_cookies`) — raw `Cookies` SQLite database from Chrome/Edge, `cookies.sqlite` from Firefox
+- **Saved passwords** (`BrowserConfig.IncludePasswords` / `include_passwords`) — `Login Data` (Chrome/Edge), `logins.json` (Firefox)
+- **Sessions** (`BrowserConfig.IncludeSessions` / `include_sessions`) — `Sessions/`, `Session Storage/` (Chrome/Edge), `sessionstore-backups/` (Firefox)
+
+All three default to `true`. Disable individually in `wpre.yaml`.
+
+> ⚠️ **DPAPI limitation**: Browser cookies and saved passwords are encrypted with Windows DPAPI, tied to the original user's SID and login password. The raw database files will be copied to the vault and restored to the new profile, but the browser will **not be able to decrypt them** on the new profile. To preserve usable cookies/logins, export them via browser extension or DevTools protocol **before** migration. The file data is preserved for forensic/extraction purposes.
+
 ### Stripped — never preserved
 - OneDrive sync database (`*.sync.db`, `*.odl`, etc.)
-- Browser cookies, login sessions, auth tokens
-- Windows credentials
+- Windows credentials (DPAPI-protected, machine-specific)
 - Old profile SID references
 - `Thumbs.db`, `*.tmp`, `*.log`
 
