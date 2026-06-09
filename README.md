@@ -97,6 +97,15 @@ browsers:
   include_passwords: true
   include_sessions: true
 
+outlook:
+  enabled: true
+  detect_pst: true
+  copy_pst: true
+  export_profile_reg: true
+  backup_autocomplete: true
+  generate_setup_guide: true
+  # mailpv_path: "C:\\Tools\\mailpv.exe"   # optional NirSoft MailPV
+
 data:
   vault_root: "C:\\MigrationVault"
   safe_folders:
@@ -145,6 +154,18 @@ All three default to `true`. Disable individually in `wpre.yaml`.
 > | Firefox | Firefox Account (`about:preferences#sync`) | Bookmarks, logins, open tabs, history, add-ons, preferences |
 >
 > Browser sync is the most reliable way to preserve usable auth state across profiles. No DPAPI issues, no manual export steps. Make sure sync is enabled on the **source machine** before migration, then sign in on the new profile after WPRE completes.
+
+### Configurable — Outlook profile & autocomplete (opt-in via `outlook.*`)
+- **Profile registry** (`OutlookConfig.ExportProfileReg` / `export_profile_reg`) — exports `HKCU\Software\Microsoft\Office\<ver>\Outlook\Profiles` to `VaultRoot/Outlook/Registry/outlook_profiles.reg` for account server names, mailbox config
+- **Autocomplete cache** (`OutlookConfig.BackupAutocomplete` / `backup_autocomplete`) — copies `Stream_Autocomplete_*.dat` (RoamCache) and `*.NK2` files to `VaultRoot/Outlook/Autocomplete/`. These power Outlook's predictive-text address suggestions when composing emails
+- **Setup guide** (`OutlookConfig.GenerateSetupGuide` / `generate_setup_guide`) — generates `WPRE_Outlook_Setup_Guide.txt` in the vault and places a copy on the new user's desktop with step-by-step instructions for re-adding accounts and re-attaching PST files
+- **MailPV** (`OutlookConfig.MailPVPath` / `mailpv_path`) — optional path to NirSoft MailPV (http://www.nirsoft.net/utils/mailpv.html). If provided, WPRE runs `mailpv.exe /stext` to extract visible email account passwords. Results saved to `VaultRoot/Outlook/MailPV/`
+
+> ⚠️ **Antivirus false positives**: NirSoft tools (MailPV, etc.) are commonly flagged by antivirus software as "hacktools" or "password recovery tools." These are legitimate system administration utilities. If using MailPV, add an exclusion for the `mailpv.exe` binary and the vault output directory, or disable real-time protection temporarily. WPRE itself is a Go binary and is not flagged by any major AV vendor.
+>
+> ✅ **Recommended approach — Microsoft Modern Auth / OAuth 2.0**: Even with MailPV, most Outlook accounts now use Modern Auth (OAuth 2.0) which does not store a reusable password locally. The registry export provides your server names and mailbox paths; you will still need to re-authenticate interactively on the new profile. Use the setup guide placed on your desktop.
+>
+> ✅ **Autocomplete is per-machine**: The migrated RoamCache/NK2 files will restore your address autocomplete history. If suggestions don't appear immediately after migration, close Outlook, delete the new RoamCache `.dat` files, and restart — Outlook will rebuild from the NK2 backup.
 
 ### Stripped — never preserved
 - OneDrive sync database (`*.sync.db`, `*.odl`, etc.)

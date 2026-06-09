@@ -47,12 +47,15 @@ type BrowserConfig struct {
 }
 
 type OutlookConfig struct {
-	Enabled          bool `yaml:"enabled"`
-	DetectPST        bool `yaml:"detect_pst"`
-	DetectOST        bool `yaml:"detect_ost"`
-	CopyPST          bool `yaml:"copy_pst"`
-	ExportProfileReg bool `yaml:"export_profile_reg"`
-	VerifyWithScanpst bool `yaml:"verify_with_scanpst"`
+	Enabled            bool   `yaml:"enabled"`
+	DetectPST          bool   `yaml:"detect_pst"`
+	DetectOST          bool   `yaml:"detect_ost"`
+	CopyPST            bool   `yaml:"copy_pst"`
+	ExportProfileReg   bool   `yaml:"export_profile_reg"`
+	VerifyWithScanpst  bool   `yaml:"verify_with_scanpst"`
+	BackupAutocomplete bool   `yaml:"backup_autocomplete"`
+	GenerateSetupGuide bool   `yaml:"generate_setup_guide"`
+	MailPVPath         string `yaml:"mailpv_path"`
 }
 
 type DataConfig struct {
@@ -109,12 +112,15 @@ func Default() *Config {
 			IncludeSessions:   true,
 		},
 		Outlook: OutlookConfig{
-			Enabled:           true,
-			DetectPST:         true,
-			DetectOST:         true,
-			CopyPST:           true,
-			ExportProfileReg:  true,
-			VerifyWithScanpst: false,
+			Enabled:            true,
+			DetectPST:          true,
+			DetectOST:          true,
+			CopyPST:            true,
+			ExportProfileReg:   true,
+			VerifyWithScanpst:  false,
+			BackupAutocomplete: true,
+			GenerateSetupGuide: true,
+			MailPVPath:         "",
 		},
 		Data: DataConfig{
 			VaultRoot:            "C:\\MigrationVault",

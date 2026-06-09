@@ -47,6 +47,10 @@ outlook:
   enabled: true
   detect_pst: true
   copy_pst: true
+  export_profile_reg: true
+  backup_autocomplete: true
+  generate_setup_guide: true
+  mailpv_path: ""
 
 data:
   vault_root: "C:\\MigrationVault"

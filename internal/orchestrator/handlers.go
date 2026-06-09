@@ -313,18 +313,25 @@ func handleAppCapture(ctx *pipeline.Context) error {
 	}
 
 	cfg := ctx.Config.(*config.Config)
-	if !cfg.Browsers.IncludeCookies && !cfg.Browsers.IncludePasswords && !cfg.Browsers.IncludeSessions {
-		ctx.Logger.Info("[app_capture] browser auth capture disabled in config — skipping")
-		return nil
+	browserEnabled := cfg.Browsers.IncludeCookies || cfg.Browsers.IncludePasswords || cfg.Browsers.IncludeSessions
+	if browserEnabled {
+		ctx.Logger.Info("[app_capture] harvesting browser auth from: %s", source)
+		if err := harvestBrowserAuth(ctx, source); err != nil {
+			ctx.Logger.Warn("[app_capture] harvestBrowserAuth error (non-fatal): %v", err)
+		} else {
+			ctx.Logger.Info("[app_capture] browser auth capture complete")
+		}
+	} else {
+		ctx.Logger.Info("[app_capture] browser auth disabled in config — skipping")
 	}
-	ctx.Logger.Info("[app_capture] harvesting browser auth from: %s", source)
 
-	if err := harvestBrowserAuth(ctx, source); err != nil {
-		ctx.Logger.Warn("[app_capture] harvestBrowserAuth error (non-fatal): %v", err)
-		return nil
+	ctx.Logger.Info("[app_capture] harvesting Outlook auth data")
+	if err := harvestOutlookAuth(ctx, source); err != nil {
+		ctx.Logger.Warn("[app_capture] harvestOutlookAuth error (non-fatal): %v", err)
+	} else {
+		ctx.Logger.Info("[app_capture] Outlook auth capture complete")
 	}
 
-	ctx.Logger.Info("[app_capture] browser auth capture complete")
 	return nil
 }
 
@@ -465,6 +472,13 @@ func handleDataInject(ctx *pipeline.Context) error {
 			}
 			ctx.Logger.Info("[data_inject]   browser %s: %d files restored to %s", br.vaultSub, result.FilesCopied, dst)
 		}
+	}
+
+	if cfg.Outlook.Enabled && cfg.Outlook.BackupAutocomplete {
+		restoreOutlookAutocomplete(ctx, targetProfile)
+	}
+	if cfg.Outlook.Enabled && cfg.Outlook.GenerateSetupGuide {
+		placeOutlookSetupGuide(ctx, targetProfile)
 	}
 
 	ctx.Logger.Info("[data_inject] data injection complete")
