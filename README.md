@@ -134,7 +134,17 @@ Full schema in `resources/embed.go` (`DefaultConfigYAML` constant) or `resources
 
 All three default to `true`. Disable individually in `wpre.yaml`.
 
-> ⚠️ **DPAPI limitation**: Browser cookies and saved passwords are encrypted with Windows DPAPI, tied to the original user's SID and login password. The raw database files will be copied to the vault and restored to the new profile, but the browser will **not be able to decrypt them** on the new profile. To preserve usable cookies/logins, export them via browser extension or DevTools protocol **before** migration. The file data is preserved for forensic/extraction purposes.
+> ⚠️ **DPAPI limitation**: Browser cookies and saved passwords are encrypted with Windows DPAPI, tied to the original user's SID and login password. The raw database files will be copied to the vault and restored to the new profile, but the browser will **not be able to decrypt them** on the new profile. The file data is preserved for forensic/extraction purposes.
+
+> ✅ **Recommended approach — use browser sync**: After migration, log into your browser account on the new profile to restore all data from cloud sync:
+>
+> | Browser | Sync account | Restores |
+> |---------|-------------|----------|
+> | Chrome | Google Account (`chrome://settings/syncSetup`) | Bookmarks, passwords, open tabs, history, extensions + settings, payment info, addresses |
+> | Edge | Microsoft Account (`edge://settings/profiles`) | Passwords, favorites, collections, extensions, open tabs, history, settings |
+> | Firefox | Firefox Account (`about:preferences#sync`) | Bookmarks, logins, open tabs, history, add-ons, preferences |
+>
+> Browser sync is the most reliable way to preserve usable auth state across profiles. No DPAPI issues, no manual export steps. Make sure sync is enabled on the **source machine** before migration, then sign in on the new profile after WPRE completes.
 
 ### Stripped — never preserved
 - OneDrive sync database (`*.sync.db`, `*.odl`, etc.)
