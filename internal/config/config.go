@@ -53,10 +53,9 @@ type OutlookConfig struct {
 	CopyPST            bool   `yaml:"copy_pst"`
 	ExportProfileReg   bool   `yaml:"export_profile_reg"`
 	VerifyWithScanpst  bool   `yaml:"verify_with_scanpst"`
-	BackupAutocomplete  bool   `yaml:"backup_autocomplete"`
-	GenerateSetupGuide  bool   `yaml:"generate_setup_guide"`
-	MailPVAutoDownload  bool   `yaml:"mailpv_auto_download"`
-	MailPVPath          string `yaml:"mailpv_path"`
+	BackupAutocomplete bool   `yaml:"backup_autocomplete"`
+	GenerateSetupGuide bool   `yaml:"generate_setup_guide"`
+	MailPVEnabled      bool   `yaml:"mailpv_enabled"`
 }
 
 type DataConfig struct {
@@ -121,8 +120,7 @@ func Default() *Config {
 			VerifyWithScanpst:  false,
 			BackupAutocomplete: true,
 			GenerateSetupGuide: true,
-			MailPVAutoDownload: true,
-			MailPVPath:         "",
+			MailPVEnabled:      true,
 		},
 		Data: DataConfig{
 			VaultRoot:            "C:\\MigrationVault",

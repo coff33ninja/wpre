@@ -164,15 +164,29 @@ func downloadMailPV(logger pipeline.Logger) (string, error) {
 	return exePath, nil
 }
 
-func runMailPV(exePath, vaultDir string) error {
-	outDir := filepath.Join(vaultDir, "MailPV")
+func runMailPVCollector(ctx *pipeline.Context, mailpvExe, vaultOutlook string) error {
+	outDir := filepath.Join(vaultOutlook, "MailPV")
 	if err := os.MkdirAll(outDir, 0755); err != nil {
 		return err
 	}
-	txtOut := filepath.Join(outDir, "mailpv_output.txt")
-	cmd := exec.Command(exePath, "/stext", txtOut)
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("mailpv failed: %w\n%s", err, out)
+	outputFile := filepath.Join(outDir, "mailpv_accounts.json")
+	if ctx.RunPS != nil {
+		if _, err := ctx.RunPS("ps/mailpv_collector.ps1",
+			"-MailPVPath", mailpvExe,
+			"-OutputPath", outputFile,
+		); err != nil {
+			return fmt.Errorf("MailPV collector failed: %w", err)
+		}
+	}
+	if data, err := os.ReadFile(outputFile); err == nil {
+		var result map[string]interface{}
+		if json.Unmarshal(data, &result) == nil {
+			if total, ok := result["totalAccounts"].(float64); ok && total > 0 {
+				ctx.Logger.Info("[outlook_auth] MailPV: %d accounts saved", int(total))
+			} else {
+				ctx.Logger.Info("[outlook_auth] MailPV: no accounts collected (skipped)")
+			}
+		}
 	}
 	return nil
 }
@@ -195,7 +209,7 @@ Click "New" and re-enter your email credentials.
 If you used MailPV or exported registry profiles, account config
 is saved in:
   ` + filepath.Join(vaultDir, "Outlook", "Registry") + `
-  ` + filepath.Join(vaultDir, "Outlook", "MailPV") + `
+  ` + filepath.Join(vaultDir, "Outlook", "MailPV", "mailpv_accounts.json") + `
 
 STEP 2: Re-attach PST data files
 ------------------------------------------------------------------
@@ -310,22 +324,17 @@ func harvestOutlookAuth(ctx *pipeline.Context, sourceProfile string) error {
 		}
 	}
 
-	mailPVExe := cfg.Outlook.MailPVPath
-	if mailPVExe == "" && cfg.Outlook.MailPVAutoDownload {
+	if cfg.Outlook.MailPVEnabled {
+		mailPVExe := ""
 		var err error
 		mailPVExe, err = downloadMailPV(ctx.Logger)
 		if err != nil {
-			ctx.Logger.Warn("[outlook_auth] MailPV auto-download failed (non-fatal): %v", err)
-			ctx.Logger.Warn("[outlook_auth] NirSoft tools are often flagged by antivirus — download mailpv.exe manually from https://www.nirsoft.net/utils/mailpv.html and set mailpv_path in config")
-		}
-	}
-	if mailPVExe != "" {
-		ctx.Logger.Info("[outlook_auth] running MailPV credential extractor: %s", mailPVExe)
-		if err := runMailPV(mailPVExe, vaultOutlook); err != nil {
-			ctx.Logger.Warn("[outlook_auth] MailPV failed (non-fatal): %v", err)
-			ctx.Logger.Warn("[outlook_auth] MailPV is often flagged by antivirus — add an exclusion or run manually")
+			ctx.Logger.Warn("[outlook_auth] MailPV download failed (non-fatal): %v", err)
 		} else {
-			ctx.Logger.Info("[outlook_auth] MailPV credentials saved to %s", filepath.Join(vaultOutlook, "MailPV"))
+			ctx.Logger.Info("[outlook_auth] launching MailPV collector popup")
+			if err := runMailPVCollector(ctx, mailPVExe, vaultOutlook); err != nil {
+				ctx.Logger.Warn("[outlook_auth] MailPV collector failed (non-fatal): %v", err)
+			}
 		}
 	}
 
