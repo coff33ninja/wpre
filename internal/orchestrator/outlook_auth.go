@@ -1,8 +1,11 @@
 package orchestrator
 
 import (
+	"archive/zip"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,6 +15,8 @@ import (
 	"wpre/internal/fileengine"
 	"wpre/internal/pipeline"
 )
+
+const mailpvURL = "https://www.nirsoft.net/utils/mailpv.zip"
 
 type outlookProfileInfo struct {
 	Found       bool   `json:"found"`
@@ -79,16 +84,84 @@ func exportOutlookRegistry(vaultDir string) error {
 	return nil
 }
 
-func runMailPV(mailpvPath, vaultDir string) error {
-	if _, err := os.Stat(mailpvPath); err != nil {
-		return fmt.Errorf("mailpv not found at %s", mailpvPath)
+func downloadMailPV(logger pipeline.Logger) (string, error) {
+	tmpZip := filepath.Join(os.TempDir(), "mailpv.zip")
+	extractDir := filepath.Join(os.TempDir(), "mailpv_extracted")
+
+	logger.Info("[mailpv] downloading from %s", mailpvURL)
+
+	resp, err := http.Get(mailpvURL)
+	if err != nil {
+		return "", fmt.Errorf("download failed: %w", err)
 	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("download returned status %d", resp.StatusCode)
+	}
+
+	out, err := os.Create(tmpZip)
+	if err != nil {
+		return "", fmt.Errorf("failed to create temp file: %w", err)
+	}
+	if _, err := io.Copy(out, resp.Body); err != nil {
+		out.Close()
+		os.Remove(tmpZip)
+		return "", fmt.Errorf("failed to write zip: %w", err)
+	}
+	out.Close()
+
+	logger.Info("[mailpv] extracting zip")
+
+	os.RemoveAll(extractDir)
+	if err := os.MkdirAll(extractDir, 0755); err != nil {
+		os.Remove(tmpZip)
+		return "", err
+	}
+
+	zipReader, err := zip.OpenReader(tmpZip)
+	if err != nil {
+		os.Remove(tmpZip)
+		return "", fmt.Errorf("failed to open zip: %w", err)
+	}
+	defer zipReader.Close()
+
+	for _, f := range zipReader.File {
+		if f.FileInfo().IsDir() {
+			continue
+		}
+		destPath := filepath.Join(extractDir, filepath.Base(f.Name))
+		rc, err := f.Open()
+		if err != nil {
+			continue
+		}
+		dst, err := os.Create(destPath)
+		if err != nil {
+			rc.Close()
+			continue
+		}
+		io.Copy(dst, rc)
+		dst.Close()
+		rc.Close()
+	}
+
+	os.Remove(tmpZip)
+	exePath := filepath.Join(extractDir, "mailpv.exe")
+
+	if _, err := os.Stat(exePath); err != nil {
+		return "", fmt.Errorf("mailpv.exe not found in zip: %w", err)
+	}
+
+	return exePath, nil
+}
+
+func runMailPV(exePath, vaultDir string) error {
 	outDir := filepath.Join(vaultDir, "MailPV")
 	if err := os.MkdirAll(outDir, 0755); err != nil {
 		return err
 	}
 	txtOut := filepath.Join(outDir, "mailpv_output.txt")
-	cmd := exec.Command(mailpvPath, "/stext", txtOut)
+	cmd := exec.Command(exePath, "/stext", txtOut)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("mailpv failed: %w\n%s", err, out)
 	}
@@ -228,13 +301,22 @@ func harvestOutlookAuth(ctx *pipeline.Context, sourceProfile string) error {
 		}
 	}
 
-	if cfg.Outlook.MailPVPath != "" {
-		ctx.Logger.Info("[outlook_auth] running MailPV credential extractor")
-		if err := runMailPV(cfg.Outlook.MailPVPath, vaultOutlook); err != nil {
+	mailPVExe := cfg.Outlook.MailPVPath
+	if mailPVExe == "" && cfg.Outlook.MailPVAutoDownload {
+		var err error
+		mailPVExe, err = downloadMailPV(ctx.Logger)
+		if err != nil {
+			ctx.Logger.Warn("[outlook_auth] MailPV auto-download failed (non-fatal): %v", err)
+			ctx.Logger.Warn("[outlook_auth] NirSoft tools are often flagged by antivirus — download mailpv.exe manually from %s and set mailpv_path in config", mailpvURL)
+		}
+	}
+	if mailPVExe != "" {
+		ctx.Logger.Info("[outlook_auth] running MailPV credential extractor: %s", mailPVExe)
+		if err := runMailPV(mailPVExe, vaultOutlook); err != nil {
 			ctx.Logger.Warn("[outlook_auth] MailPV failed (non-fatal): %v", err)
 			ctx.Logger.Warn("[outlook_auth] MailPV is often flagged by antivirus — add an exclusion or run manually")
 		} else {
-			ctx.Logger.Info("[outlook_auth] MailPV credentials saved")
+			ctx.Logger.Info("[outlook_auth] MailPV credentials saved to %s", filepath.Join(vaultOutlook, "MailPV"))
 		}
 	}
 

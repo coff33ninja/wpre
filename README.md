@@ -104,7 +104,8 @@ outlook:
   export_profile_reg: true
   backup_autocomplete: true
   generate_setup_guide: true
-  # mailpv_path: "C:\\Tools\\mailpv.exe"   # optional NirSoft MailPV
+  mailpv_auto_download: true
+  # mailpv_path: "C:\\Tools\\mailpv.exe"   # override, skips auto-download
 
 data:
   vault_root: "C:\\MigrationVault"
@@ -159,9 +160,9 @@ All three default to `true`. Disable individually in `wpre.yaml`.
 - **Profile registry** (`OutlookConfig.ExportProfileReg` / `export_profile_reg`) — exports `HKCU\Software\Microsoft\Office\<ver>\Outlook\Profiles` to `VaultRoot/Outlook/Registry/outlook_profiles.reg` for account server names, mailbox config
 - **Autocomplete cache** (`OutlookConfig.BackupAutocomplete` / `backup_autocomplete`) — copies `Stream_Autocomplete_*.dat` (RoamCache) and `*.NK2` files to `VaultRoot/Outlook/Autocomplete/`. These power Outlook's predictive-text address suggestions when composing emails
 - **Setup guide** (`OutlookConfig.GenerateSetupGuide` / `generate_setup_guide`) — generates `WPRE_Outlook_Setup_Guide.txt` in the vault and places a copy on the new user's desktop with step-by-step instructions for re-adding accounts and re-attaching PST files
-- **MailPV** (`OutlookConfig.MailPVPath` / `mailpv_path`) — optional path to NirSoft MailPV (http://www.nirsoft.net/utils/mailpv.html). If provided, WPRE runs `mailpv.exe /stext` to extract visible email account passwords. Results saved to `VaultRoot/Outlook/MailPV/`
+- **MailPV** (`OutlookConfig.MailPVAutoDownload` / `mailpv_auto_download`) — WPRE automatically downloads MailPV from https://www.nirsoft.net/utils/mailpv.zip and runs `mailpv.exe /stext` to extract visible email account passwords. Results saved to `VaultRoot/Outlook/MailPV/`. Set `mailpv_path` to a local path to skip auto-download and use your own copy.
 
-> ⚠️ **Antivirus false positives**: NirSoft tools (MailPV, etc.) are commonly flagged by antivirus software as "hacktools" or "password recovery tools." These are legitimate system administration utilities. If using MailPV, add an exclusion for the `mailpv.exe` binary and the vault output directory, or disable real-time protection temporarily. WPRE itself is a Go binary and is not flagged by any major AV vendor.
+> ⚠️ **Antivirus false positives**: NirSoft tools (MailPV, etc.) are commonly flagged by antivirus software as "hacktools" or "password recovery tools." These are legitimate system administration utilities. WPRE auto-downloads MailPV from the official NirSoft site. If your AV blocks the download or the binary, add an exclusion for `mailpv.exe` and the vault output directory, disable real-time protection temporarily, or set `mailpv_auto_download: false` and manually place `mailpv.exe` at a path specified in `mailpv_path`. WPRE itself is a Go binary and is not flagged by any major AV vendor.
 >
 > ✅ **Recommended approach — Microsoft Modern Auth / OAuth 2.0**: Even with MailPV, most Outlook accounts now use Modern Auth (OAuth 2.0) which does not store a reusable password locally. The registry export provides your server names and mailbox paths; you will still need to re-authenticate interactively on the new profile. Use the setup guide placed on your desktop.
 >
