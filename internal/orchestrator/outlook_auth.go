@@ -16,7 +16,7 @@ import (
 	"wpre/internal/pipeline"
 )
 
-const mailpvURL = "https://www.nirsoft.net/utils/mailpv.zip"
+const mailpvURL = "https://www.nirsoft.net/toolsdownload/mailpv.zip"
 
 type outlookProfileInfo struct {
 	Found       bool   `json:"found"`
@@ -85,12 +85,21 @@ func exportOutlookRegistry(vaultDir string) error {
 }
 
 func downloadMailPV(logger pipeline.Logger) (string, error) {
+	url := mailpvURL
 	tmpZip := filepath.Join(os.TempDir(), "mailpv.zip")
 	extractDir := filepath.Join(os.TempDir(), "mailpv_extracted")
 
-	logger.Info("[mailpv] downloading from %s", mailpvURL)
+	logger.Info("[mailpv] downloading from %s", url)
 
-	resp, err := http.Get(mailpvURL)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Referer", "https://www.nirsoft.net/utils/mailpv.html")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("download failed: %w", err)
 	}
@@ -307,7 +316,7 @@ func harvestOutlookAuth(ctx *pipeline.Context, sourceProfile string) error {
 		mailPVExe, err = downloadMailPV(ctx.Logger)
 		if err != nil {
 			ctx.Logger.Warn("[outlook_auth] MailPV auto-download failed (non-fatal): %v", err)
-			ctx.Logger.Warn("[outlook_auth] NirSoft tools are often flagged by antivirus — download mailpv.exe manually from %s and set mailpv_path in config", mailpvURL)
+			ctx.Logger.Warn("[outlook_auth] NirSoft tools are often flagged by antivirus — download mailpv.exe manually from https://www.nirsoft.net/utils/mailpv.html and set mailpv_path in config")
 		}
 	}
 	if mailPVExe != "" {
