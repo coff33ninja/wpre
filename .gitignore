@@ -1,0 +1,29 @@
+# Built binary
+wpre.exe
+*.exe
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+uv.lock
+
+# Go
+*.test
+*.out
+
+# Runtime
+logs/
+rollback/
+vault/
+migration_*.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo

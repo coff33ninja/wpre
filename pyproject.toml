@@ -1,0 +1,6 @@
+[project]
+name = "wpre-modules"
+version = "1.0.0"
+description = "WPRE Python data processing modules"
+requires-python = ">=3.10"
+dependencies = []
